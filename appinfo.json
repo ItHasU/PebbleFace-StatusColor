@@ -1,0 +1,24 @@
+{
+    "appKeys": {},
+    "capabilities": [
+        ""
+    ],
+    "companyName": "Pebble",
+    "longName": "Color Status Watchface",
+    "projectType": "native",
+    "resources": {
+        "media": []
+    },
+    "sdkVersion": "3",
+    "shortName": "Color Status",
+    "targetPlatforms": [
+        "aplite",
+        "basalt",
+        "chalk"
+    ],
+    "uuid": "38e9d140-d0b1-45fa-9180-0500ac31ccbf",
+    "versionLabel": "1.0",
+    "watchapp": {
+        "watchface": true
+    }
+}
