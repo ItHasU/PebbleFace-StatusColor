@@ -1,22 +1,29 @@
 #include <pebble.h>
 
-#define TEXT_SIZE 50
-#define MARGIN 5
+#define SCREEN_WIDTH  144
+#define SCREEN_HEIGHT 168
+
+#define TEXT_SIZE_OUTER 57
+#define TEXT_SIZE_INNER 50
+#define TEXT_POSITION_OUTER 104
+#define TEXT_POSITION_INNER 107
+
+#define ANALOG_CENTER_X (SCREEN_WIDTH / 2)
+#define ANALOG_CENTER_Y (TEXT_POSITION_OUTER / 2)
+#define ANALOG_RADIUS   44
+#define ANALOG_STROKE   4
 
 static Window *s_main_window;
 static TextLayer *s_time_layer;
 static Layer *s_analog_layer;
 
-static uint16_t min(uint16_t a, uint16_t b) {
-  return a < b ? a : b;
-}
-
 static void update_background(struct Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_bounds(layer);
+  
   // Prepare background rect before modifying bounds
   GRect back = bounds;
-  back.origin.y = bounds.size.h / 2 - MARGIN;
-  back.size.h = TEXT_SIZE + 2 * MARGIN;
+  back.origin.y = TEXT_POSITION_OUTER;
+  back.size.h = TEXT_SIZE_OUTER;
 
   // Connection status
   bool connected = connection_service_peek_pebble_app_connection();
@@ -25,7 +32,7 @@ static void update_background(struct Layer *layer, GContext *ctx) {
   
   // Battery status
   BatteryChargeState charge = battery_state_service_peek();
-  bounds.origin.y = bounds.size.h / 2;
+  bounds.origin.y = TEXT_POSITION_OUTER + TEXT_SIZE_INNER;
   if (charge.is_charging) {
     graphics_context_set_fill_color(ctx, GColorGreen);
   } else {
@@ -45,20 +52,18 @@ static void update_background(struct Layer *layer, GContext *ctx) {
 } 
 
 static void update_analog(struct Layer *layer, GContext *ctx) {
-  GRect bounds = layer_get_bounds(layer);
-  // Prepare center, radius
   GPoint center = (GPoint) {
-    .x = bounds.size.w / 2,
-    .y = bounds.size.h / 2 - MARGIN
+    .x = ANALOG_CENTER_X,
+    .y = ANALOG_CENTER_Y
   };
-  const uint16_t radius = min(bounds.size.w, bounds.size.h) / 2 - 2 * MARGIN;
+
   // Draw background
-//  graphics_context_set_fill_color(ctx, GColorBlack);
-//  graphics_fill_circle(ctx, center, radius + MARGIN);
+  graphics_context_set_fill_color(ctx, GColorBlack);
+  graphics_fill_circle(ctx, center, ANALOG_RADIUS + ANALOG_STROKE);
   graphics_context_set_fill_color(ctx, GColorWhite);
-  graphics_fill_circle(ctx, center, radius);
+  graphics_fill_circle(ctx, center, ANALOG_RADIUS);
   graphics_context_set_stroke_color(ctx, GColorBlack);
-  graphics_context_set_stroke_width(ctx, MARGIN);
+  graphics_context_set_stroke_width(ctx, ANALOG_STROKE);
   
   // Get a tm structure
   time_t temp = time(NULL); 
@@ -69,16 +74,15 @@ static void update_analog(struct Layer *layer, GContext *ctx) {
   
   // Prepare lines
   GPoint hour = (GPoint) {
-    .x = (sin_lookup(hour_angle) * radius / TRIG_MAX_RATIO / 2) + center.x,
-    .y = (-cos_lookup(hour_angle) * radius / TRIG_MAX_RATIO / 2) + center.y
+    .x = (sin_lookup(hour_angle) * ANALOG_RADIUS / TRIG_MAX_RATIO / 2) + center.x,
+    .y = (-cos_lookup(hour_angle) * ANALOG_RADIUS / TRIG_MAX_RATIO / 2) + center.y
   };
   GPoint minute = (GPoint) {
-    .x = (sin_lookup(minute_angle) * (radius - MARGIN) / TRIG_MAX_RATIO) + center.x,
-    .y = (-cos_lookup(minute_angle) * (radius - MARGIN) / TRIG_MAX_RATIO) + center.y
+    .x = (sin_lookup(minute_angle) * (ANALOG_RADIUS - ANALOG_STROKE) / TRIG_MAX_RATIO) + center.x,
+    .y = (-cos_lookup(minute_angle) * (ANALOG_RADIUS - ANALOG_STROKE) / TRIG_MAX_RATIO) + center.y
   };
 
   // Draw lines
-  graphics_draw_circle(ctx, center, radius);
   graphics_draw_line(ctx, center, hour);
   graphics_draw_line(ctx, center, minute);
 }
@@ -122,8 +126,7 @@ static void main_window_load(Window *window) {
   layer_set_update_proc(window_layer, &update_background);
   
   //-- Create the TextLayer with specific bounds --
-  s_time_layer = text_layer_create(
-      GRect(0, bounds.size.h/2, bounds.size.w, TEXT_SIZE));
+  s_time_layer = text_layer_create(GRect(0, TEXT_POSITION_INNER, bounds.size.w, TEXT_SIZE_INNER));
 
   // Improve the layout to be more like a watchface
   text_layer_set_background_color(s_time_layer, GColorWhite);
@@ -136,7 +139,6 @@ static void main_window_load(Window *window) {
   layer_add_child(window_layer, text_layer_get_layer(s_time_layer));
 
   //-- Create analog layer --
-  bounds.size.h /= 2;
   s_analog_layer = layer_create(bounds);
   layer_set_update_proc(s_analog_layer, &update_analog);
   layer_add_child(window_layer, s_analog_layer);
