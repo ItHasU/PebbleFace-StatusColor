@@ -48,17 +48,39 @@ static void update_analog(struct Layer *layer, GContext *ctx) {
   GRect bounds = layer_get_bounds(layer);
   // Prepare center, radius
   GPoint center = (GPoint) {
-    .x = bounds.size.w / 4,
-    .y = bounds.size.h / 4
+    .x = bounds.size.w / 2,
+    .y = bounds.size.h / 2 - MARGIN
   };
-  uint16_t radius = min(bounds.size.w, bounds.size.h) / 4 - MARGIN;
+  const uint16_t radius = min(bounds.size.w, bounds.size.h) / 2 - 2 * MARGIN;
   // Draw background
-  graphics_context_set_fill_color(ctx, GColorBlack);
-  graphics_fill_circle(ctx, center, radius);
+//  graphics_context_set_fill_color(ctx, GColorBlack);
+//  graphics_fill_circle(ctx, center, radius + MARGIN);
   graphics_context_set_fill_color(ctx, GColorWhite);
-  graphics_fill_circle(ctx, center, radius - MARGIN);
+  graphics_fill_circle(ctx, center, radius);
+  graphics_context_set_stroke_color(ctx, GColorBlack);
+  graphics_context_set_stroke_width(ctx, MARGIN);
   
+  // Get a tm structure
+  time_t temp = time(NULL); 
+  struct tm *t = localtime(&temp);
+
+  int32_t hour_angle = TRIG_MAX_ANGLE * (t->tm_hour % 12) / 12;
+  int32_t minute_angle = TRIG_MAX_ANGLE * t->tm_min / 60;
+  
+  // Prepare lines
+  GPoint hour = (GPoint) {
+    .x = (sin_lookup(hour_angle) * radius / TRIG_MAX_RATIO / 2) + center.x,
+    .y = (-cos_lookup(hour_angle) * radius / TRIG_MAX_RATIO / 2) + center.y
+  };
+  GPoint minute = (GPoint) {
+    .x = (sin_lookup(minute_angle) * (radius - MARGIN) / TRIG_MAX_RATIO) + center.x,
+    .y = (-cos_lookup(minute_angle) * (radius - MARGIN) / TRIG_MAX_RATIO) + center.y
+  };
+
   // Draw lines
+  graphics_draw_circle(ctx, center, radius);
+  graphics_draw_line(ctx, center, hour);
+  graphics_draw_line(ctx, center, minute);
 }
 
 static void update_time() {
@@ -73,6 +95,8 @@ static void update_time() {
 
   // Display this time on the TextLayer
   text_layer_set_text(s_time_layer, s_buffer);
+  
+  layer_mark_dirty(s_analog_layer);
 }
 
 static void tick_handler(struct tm *tick_time, TimeUnits units_changed) {
@@ -97,7 +121,7 @@ static void main_window_load(Window *window) {
   GRect bounds = layer_get_bounds(window_layer);
   layer_set_update_proc(window_layer, &update_background);
   
-  // Create the TextLayer with specific bounds
+  //-- Create the TextLayer with specific bounds --
   s_time_layer = text_layer_create(
       GRect(0, bounds.size.h/2, bounds.size.w, TEXT_SIZE));
 
@@ -110,11 +134,18 @@ static void main_window_load(Window *window) {
 
   // Add it as a child layer to the Window's root layer
   layer_add_child(window_layer, text_layer_get_layer(s_time_layer));
+
+  //-- Create analog layer --
+  bounds.size.h /= 2;
+  s_analog_layer = layer_create(bounds);
+  layer_set_update_proc(s_analog_layer, &update_analog);
+  layer_add_child(window_layer, s_analog_layer);
 }
 
 static void main_window_unload(Window *window) {
   // Destroy TextLayer
   text_layer_destroy(s_time_layer);
+  layer_destroy(s_analog_layer);
 }
 
 static void init() {
