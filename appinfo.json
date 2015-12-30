@@ -12,9 +12,7 @@
     "sdkVersion": "3",
     "shortName": "Color Status",
     "targetPlatforms": [
-        "aplite",
-        "basalt",
-        "chalk"
+        "basalt"
     ],
     "uuid": "38e9d140-d0b1-45fa-9180-0500ac31ccbf",
     "versionLabel": "1.0",
