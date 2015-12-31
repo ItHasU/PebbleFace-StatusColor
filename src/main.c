@@ -5,10 +5,10 @@
 
 #define GLOBAL_BORDER       4
 
-#define TEXT_SIZE_OUTER     57
 #define TEXT_SIZE_INNER     50
+#define TEXT_SIZE_OUTER     TEXT_SIZE_INNER + 2 * GLOBAL_BORDER
 #define TEXT_POSITION_OUTER 94
-#define TEXT_POSITION_INNER (TEXT_POSITION_OUTER + 3)
+#define TEXT_POSITION_INNER (TEXT_POSITION_OUTER + GLOBAL_BORDER)
 
 #define ANALOG_CENTER_X     (SCREEN_WIDTH / 4)
 #define ANALOG_CENTER_Y     (TEXT_POSITION_OUTER / 2)
@@ -19,13 +19,14 @@
 #define DATE_ONE_HEIGHT     48 /* Including border */
 #define DATE_BORDER         GLOBAL_BORDER
 #define DATE_COUNT          2
-#define DATE_STEP           (2 * DATE_BORDER)
+#define DATE_STEP           (DATE_BORDER + 2)
 #define DATE_FIRST_X        (3 * SCREEN_WIDTH / 4 - (DATE_ONE_WIDTH + (DATE_COUNT - 1) * DATE_STEP) / 2)
-#define DATE_FIRST_Y        (ANALOG_CENTER_Y + ANALOG_RADIUS + ANALOG_STROKE - DATE_ONE_HEIGHT)
+#define DATE_FIRST_Y        (TEXT_POSITION_OUTER / 2 - DATE_ONE_HEIGHT / 2 + ((DATE_COUNT - 1) * DATE_STEP) / 2)
 
 static Window    *s_main_window;
 static TextLayer *s_time_layer;
 static TextLayer *s_date_layer;
+static TextLayer *s_day_layer;
 static Layer     *s_analog_layer;
 
 static GColor background_color;
@@ -35,7 +36,7 @@ static GColor battery_color;
 static void update_background(struct Layer *layer, GContext *ctx) {
   //-- Prepare colors --
   // Init vars
-  background_color = GColorDukeBlue;
+  background_color = GColorDarkGray;//GColorDukeBlue;
   connected_color = GColorWhite;
   battery_color = GColorWhite;
 
@@ -143,10 +144,14 @@ static void update_time() {
   // Display this time on the TextLayer
   text_layer_set_text(s_time_layer, s_buffer_time);
   
-  // Write the current hours and minutes into a buffer
-  static char s_buffer_date[6];
+  // Write the current day abbreviation into a buffer
+  static char s_buffer_day[4];
+  strftime(s_buffer_day, sizeof(s_buffer_day), "%a", tick_time);
+  text_layer_set_text(s_day_layer, s_buffer_day);
+
+  // Write the current day number into a buffer
+  static char s_buffer_date[3];
   strftime(s_buffer_date, sizeof(s_buffer_date), "%d", tick_time);
-  // Display date on second TextLayer
   text_layer_set_text(s_date_layer, s_buffer_date);
 
   // Refresh analog layer
@@ -188,17 +193,22 @@ static void main_window_load(Window *window) {
   // Add it as a child layer to the Window's root layer
   layer_add_child(window_layer, text_layer_get_layer(s_time_layer));
 
-  //-- Create the TextLayer for date --
-  s_date_layer = text_layer_create(GRect(DATE_FIRST_X, DATE_FIRST_Y, DATE_ONE_WIDTH, DATE_ONE_HEIGHT));
+  //-- Create the TextLayer for day abbrv --
+  s_day_layer = text_layer_create(GRect(DATE_FIRST_X, DATE_FIRST_Y + 2, DATE_ONE_WIDTH, DATE_ONE_HEIGHT));
+  text_layer_set_background_color(s_day_layer, GColorClear);
+  text_layer_set_text_color(s_day_layer, GColorBlack);
+  text_layer_set_text(s_day_layer, "DDD");
+  text_layer_set_font(s_day_layer, fonts_get_system_font(FONT_KEY_GOTHIC_14_BOLD));
+  text_layer_set_text_alignment(s_day_layer, GTextAlignmentCenter);
+  layer_add_child(window_layer, text_layer_get_layer(s_day_layer));
 
-  // Improve the layout to be more like a watchface
+  //-- Create the TextLayer for day number --
+  s_date_layer = text_layer_create(GRect(DATE_FIRST_X, DATE_FIRST_Y + 14, DATE_ONE_WIDTH, DATE_ONE_HEIGHT));
   text_layer_set_background_color(s_date_layer, GColorClear);
   text_layer_set_text_color(s_date_layer, GColorBlack);
-  text_layer_set_text(s_date_layer, "XX");
-  text_layer_set_font(s_date_layer, fonts_get_system_font(FONT_KEY_LECO_38_BOLD_NUMBERS));
+  text_layer_set_text(s_date_layer, "00");
+  text_layer_set_font(s_date_layer, fonts_get_system_font(FONT_KEY_LECO_26_BOLD_NUMBERS_AM_PM));
   text_layer_set_text_alignment(s_date_layer, GTextAlignmentCenter);
-
-  // Add it as a child layer to the Window's root layer
   layer_add_child(window_layer, text_layer_get_layer(s_date_layer));
   
   //-- Create analog layer --
@@ -210,6 +220,7 @@ static void main_window_load(Window *window) {
 static void main_window_unload(Window *window) {
   // Destroy TextLayer
   text_layer_destroy(s_time_layer);
+  text_layer_destroy(s_day_layer);
   text_layer_destroy(s_date_layer);
   layer_destroy(s_analog_layer);
 }
