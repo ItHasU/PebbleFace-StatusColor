@@ -36,8 +36,9 @@ static GColor battery_color;
 static void update_background(struct Layer *layer, GContext *ctx) {
   //-- Prepare colors --
   // Init vars
-  background_color = GColorDarkGray;//GColorDukeBlue;
-  connected_color = GColorWhite;
+  background_color = GColorOxfordBlue;
+
+  connected_color = background_color;
   battery_color = GColorWhite;
 
   // Connected ?
@@ -47,13 +48,13 @@ static void update_background(struct Layer *layer, GContext *ctx) {
 
   // Battery status ?
   BatteryChargeState charge = battery_state_service_peek();
-  if (charge.is_charging) {
-    if (charge.charge_percent == 100) {
-      // ... Charged!
-      battery_color = GColorGreen;
-    } else {
+  if (charge.is_plugged) {
+    if (charge.is_charging) {
       // Charging ...
       battery_color = GColorYellow;
+    } else {
+      // ... Charged!
+      battery_color = GColorGreen;
     }
   } else {
     if (charge.charge_percent <= 10) {
@@ -68,7 +69,7 @@ static void update_background(struct Layer *layer, GContext *ctx) {
   //-- Paint backgrounds --
   // Global background
   GRect bounds = layer_get_bounds(layer);
-  graphics_context_set_fill_color(ctx, background_color);
+  graphics_context_set_fill_color(ctx, connected_color);
   graphics_fill_rect(ctx, bounds, 0, GCornerNone);
   
   // Text black background
@@ -97,6 +98,23 @@ static void update_background(struct Layer *layer, GContext *ctx) {
   text_layer_set_background_color(s_time_layer, battery_color);
 }
 
+static void draw_ticks(GContext *ctx, GPoint center, int *ticks, size_t ticksCount, int32_t length) {
+  for (size_t i = 0; i < ticksCount; i++) {
+    int32_t hour_angle = TRIG_MAX_ANGLE * ticks[i] / 60;
+    GPoint tick_start = (GPoint) {
+      .x = (sin_lookup(hour_angle) * (ANALOG_RADIUS - length) / TRIG_MAX_RATIO) + center.x,
+      .y = (-cos_lookup(hour_angle) * (ANALOG_RADIUS - length) / TRIG_MAX_RATIO) + center.y
+    };
+    GPoint tick_stop = (GPoint) {
+      .x = (sin_lookup(hour_angle) * ANALOG_RADIUS / TRIG_MAX_RATIO) + center.x,
+      .y = (-cos_lookup(hour_angle) * ANALOG_RADIUS / TRIG_MAX_RATIO) + center.y
+    };
+    graphics_context_set_stroke_color(ctx, GColorBlack);
+    graphics_context_set_stroke_width(ctx, ANALOG_STROKE);
+    graphics_draw_line(ctx, tick_start, tick_stop);
+  }
+}
+
 static void update_analog(struct Layer *layer, GContext *ctx) {
   GPoint center = (GPoint) {
     .x = ANALOG_CENTER_X,
@@ -106,8 +124,12 @@ static void update_analog(struct Layer *layer, GContext *ctx) {
   // Draw background
   graphics_context_set_fill_color(ctx, GColorBlack);
   graphics_fill_circle(ctx, center, ANALOG_RADIUS + ANALOG_STROKE);
-  graphics_context_set_fill_color(ctx, connected_color);
+  graphics_context_set_fill_color(ctx, GColorWhite);
   graphics_fill_circle(ctx, center, ANALOG_RADIUS);
+  
+  // Draw ticks
+  int ticks[] = {0, 15, 30, 45};
+  draw_ticks(ctx, center, ticks, 4, ANALOG_STROKE);
   
   // Get a tm structure
   time_t temp = time(NULL); 
@@ -258,6 +280,8 @@ static void deinit() {
 }
 
 int main(void) {
+  setlocale(LC_TIME, "");
+  
   init();
   app_event_loop();
   deinit();

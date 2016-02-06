@@ -4,6 +4,7 @@
         ""
     ],
     "companyName": "ItHasU.org",
+    "enableMultiJS": false,
     "longName": "Color Status Watchface",
     "projectType": "native",
     "resources": {
